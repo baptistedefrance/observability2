@@ -1,0 +1,47 @@
+local.file_match "app_logs" {
+  path_targets = [{
+    __path__ = "/var/log/apps/apps/*.log",
+    job      = "structured-metadata-app",
+  }]
+}
+
+loki.source.file "files" {
+  targets    = local.file_match.app_logs.targets
+  forward_to = [loki.process.structured_metadata_pipeline.receiver]
+}
+
+loki.process "structured_metadata_pipeline" {
+  stage.json {
+    expressions = {
+      level    = "level",
+      service  = "service",
+      trace_id = "trace_id",
+      message  = "message",
+    }
+  }
+
+  stage.labels {
+    values = {
+      service = "",
+      level   = "",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      trace_id = "",
+    }
+  }
+
+  stage.output {
+    source = "message"
+  }
+
+  forward_to = [loki.write.loki.receiver]
+}
+
+loki.write "loki" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

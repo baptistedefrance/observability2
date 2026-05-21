@@ -1,0 +1,54 @@
+services:
+  loki:
+    image: grafana/loki:3.4.2
+    container_name: loki
+    command: -config.file=/etc/loki/loki-config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./loki/loki-config.yml:/etc/loki/loki-config.yml
+      - loki-data:/loki
+
+  grafana:
+    image: grafana/grafana:11.5.2
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+    depends_on:
+      - loki
+
+  alloy:
+    image: grafana/alloy:v1.7.5
+    container_name: alloy
+    command:
+      - run
+      - /etc/alloy/config.alloy
+      - --server.http.listen-addr=0.0.0.0:12345
+    ports:
+      - "12345:12345"
+    volumes:
+      - ./alloy/config.alloy:/etc/alloy/config.alloy
+      - ./logs:/var/log/apps
+    depends_on:
+      - loki 
+
+  log-generator:
+    image: busybox:1.37
+    container_name: log-generator
+    command: >
+      sh -c '
+      while true;
+      do
+        echo "INFO Application démarrée";
+        echo "ERROR Connexion impossible";
+        echo "WARNING Ressource lente";
+        sleep 2;
+      done'
+
+volumes:
+  loki-data:
